@@ -111,10 +111,10 @@ def build_slack_message(
     problem_label = problem_id.upper().replace("_", " - ", 1) if problem_id else "不明な問題"
     msg = (
         f":accepted: *{display_name}* が "
-        f"<{problem_url}|{problem_label}> を AC しました！"
+        f"<{problem_url}|{problem_label}> を :accepted: しました！"
     )
     if streak is not None:
-        msg += f"\n:fire: 本日初AC！現在の連続AC日数: *{streak}日*"
+        msg += f"\nCurrent Streak: *{streak} days*"
     return msg
 
 

@@ -5,6 +5,7 @@ AtCoder AC 通知スクリプト
 - 通知済みの最新提出IDを data/last_submission_ids.json に保存する
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -34,6 +35,11 @@ REQUEST_INTERVAL_SEC = 1.0
 # ──────────────────────────────────────────────
 # ヘルパー関数
 # ──────────────────────────────────────────────
+
+def hash_id(atcoder_id: str) -> str:
+    """AtCoder ID を SHA-256 でハッシュ化してキーとして使う（JSONに生IDを残さないため）"""
+    return hashlib.sha256(atcoder_id.encode()).hexdigest()[:16]
+
 
 def load_members() -> list[dict]:
     """data/members.yml を読み込んでメンバーリストを返す"""
@@ -115,8 +121,10 @@ def main() -> None:
 
         # 前回通知済みの最新提出IDが記録されていれば、その提出の epoch 秒を from_second にする
         # 記録がない場合は default_from_second（現在時刻 - 15分）を使用
-        last_id: int = state.get(atcoder_id, 0)
-        from_second: int = state.get(f"{atcoder_id}_epoch", default_from_second)
+        # キーは SHA-256 の先頭16桁（生の AtCoder ID を JSON に残さないため）
+        hkey = hash_id(atcoder_id)
+        last_id: int = state.get(hkey, 0)
+        from_second: int = state.get(f"{hkey}_epoch", default_from_second)
 
         print(f"[INFO] {atcoder_id} の提出を確認中 (from_second={from_second}) ...")
         submissions = fetch_submissions(atcoder_id, from_second)
@@ -140,8 +148,8 @@ def main() -> None:
             new_last_epoch = max(new_last_epoch, sub["epoch_second"])
 
         # 状態を更新
-        state[atcoder_id] = new_last_id
-        state[f"{atcoder_id}_epoch"] = new_last_epoch
+        state[hkey] = new_last_id
+        state[f"{hkey}_epoch"] = new_last_epoch
 
         time.sleep(REQUEST_INTERVAL_SEC)
 

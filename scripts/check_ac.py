@@ -2,28 +2,35 @@
 AtCoder AC 通知スクリプト
 - AtCoder Problems API を使って各メンバーの新規AC提出を検出する
 - 新規ACがあれば Slack Incoming Webhook で通知する
+- その日の初ACの場合は Current Streak Days も通知する
 - 通知済みの最新提出IDを data/last_submission_ids.json に保存する
 """
 
+import datetime
 import hashlib
 import json
 import os
 import sys
 import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 import yaml
+
+JST = ZoneInfo("Asia/Tokyo")
 
 # ──────────────────────────────────────────────
 # パス設定
 # ──────────────────────────────────────────────
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MEMBERS_FILE = REPO_ROOT / "data" / "members.yml"
-STATE_FILE = REPO_ROOT / "data" / "last_submission_ids.json"
 
 # AtCoder Problems API
 SUBMISSIONS_API = "https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions"
+
+STATE_FILE  = REPO_ROOT / "data" / "last_submission_ids.json"
+STREAK_FILE = REPO_ROOT / "data" / "streak.json"
 
 # Slack Webhook URL（GitHub Secrets から注入）
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
@@ -48,7 +55,7 @@ def load_members() -> list[dict]:
     return data.get("members", [])
 
 
-def load_state() -> dict[str, int]:
+def load_state() -> dict:
     """data/last_submission_ids.json を読み込む。ファイルがなければ空dictを返す"""
     if STATE_FILE.exists():
         with open(STATE_FILE, encoding="utf-8") as f:
@@ -56,10 +63,24 @@ def load_state() -> dict[str, int]:
     return {}
 
 
-def save_state(state: dict[str, int]) -> None:
+def save_state(state: dict) -> None:
     """data/last_submission_ids.json に状態を保存する"""
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
+
+
+def load_streak() -> dict:
+    """data/streak.json を読み込む。ファイルがなければ空dictを返す"""
+    if STREAK_FILE.exists():
+        with open(STREAK_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def save_streak(streak_state: dict) -> None:
+    """data/streak.json にストリーク情報を保存する"""
+    with open(STREAK_FILE, "w", encoding="utf-8") as f:
+        json.dump(streak_state, f, ensure_ascii=False, indent=2)
 
 
 def fetch_submissions(atcoder_id: str, from_second: int) -> list[dict]:
@@ -77,17 +98,24 @@ def fetch_submissions(atcoder_id: str, from_second: int) -> list[dict]:
         return []
 
 
-def build_slack_message(display_name: str, submission: dict) -> str:
+def build_slack_message(
+    display_name: str,
+    submission: dict,
+    streak: int | None = None,
+) -> str:
     """Slack 通知用のメッセージ文字列を生成する"""
     contest_id = submission.get("contest_id", "")
     problem_id = submission.get("problem_id", "")
     problem_url = f"https://atcoder.jp/contests/{contest_id}/tasks/{problem_id}"
     # 問題名が取れない場合は problem_id をそのまま表示
     problem_label = problem_id.upper().replace("_", " - ", 1) if problem_id else "不明な問題"
-    return (
-        f":tada: *{display_name}* が "
+    msg = (
+        f":accepted: *{display_name}* が "
         f"<{problem_url}|{problem_label}> を AC しました！"
     )
+    if streak is not None:
+        msg += f"\n:fire: 本日初AC！現在の連続AC日数: *{streak}日*"
+    return msg
 
 
 def post_to_slack(message: str) -> None:
@@ -111,6 +139,9 @@ def post_to_slack(message: str) -> None:
 def main() -> None:
     members = load_members()
     state = load_state()
+    streak_state = load_streak()
+
+    today_str = datetime.datetime.now(JST).date().isoformat()
 
     # 初回実行時に過去提出を大量通知しないよう、現在時刻の15分前を下限にする
     default_from_second = int(time.time()) - 15 * 60
@@ -125,6 +156,10 @@ def main() -> None:
         hkey = hash_id(atcoder_id)
         last_id: int = state.get(hkey, 0)
         from_second: int = state.get(f"{hkey}_epoch", default_from_second)
+
+        # 本日すでに「初AC通知（ストリーク付き）」を送信済みかどうか
+        last_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
+        first_ac_today_notified = False
 
         print(f"[INFO] {atcoder_id} の提出を確認中 (from_second={from_second}) ...")
         submissions = fetch_submissions(atcoder_id, from_second)
@@ -142,7 +177,35 @@ def main() -> None:
             if sub["id"] <= last_id:
                 # 既に通知済み
                 continue
-            message = build_slack_message(display_name, sub)
+
+            # 提出が今日（JST）のものかどうかを判定
+            sub_date = datetime.datetime.fromtimestamp(
+                sub["epoch_second"], tz=JST
+            ).date().isoformat()
+
+            streak: int | None = None
+            if (
+                sub_date == today_str
+                and last_ac_date != today_str
+                and not first_ac_today_notified
+            ):
+                # 本日初AC → state のメモからストリークを計算
+                # 前回のACが昨日なら streak+1、それ以外はリセットして1
+                yesterday_str = (
+                    datetime.datetime.now(JST).date()
+                    - datetime.timedelta(days=1)
+                ).isoformat()
+                prev_streak: int = streak_state.get(f"{hkey}_streak", 0)
+                if last_ac_date == yesterday_str:
+                    streak = prev_streak + 1
+                else:
+                    streak = 1
+                print(f"[INFO] {atcoder_id} の本日初AC。streak={streak}")
+                streak_state[f"{hkey}_streak"] = streak
+                streak_state[f"{hkey}_last_ac_date"] = today_str
+                first_ac_today_notified = True
+
+            message = build_slack_message(display_name, sub, streak)
             post_to_slack(message)
             new_last_id = max(new_last_id, sub["id"])
             new_last_epoch = max(new_last_epoch, sub["epoch_second"])
@@ -154,6 +217,7 @@ def main() -> None:
         time.sleep(REQUEST_INTERVAL_SEC)
 
     save_state(state)
+    save_streak(streak_state)
     print("[INFO] 状態ファイルを更新しました。")
 
 

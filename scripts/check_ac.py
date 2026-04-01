@@ -113,8 +113,10 @@ def build_slack_message(
         f":accepted: *{display_name}* が "
         f"<{problem_url}|{problem_label}> を AC しました！"
     )
-    if streak is not None:
-        msg += f"\nCurrent Streak: *{streak} days*"
+    if streak > 1:
+        msg += f"\n*Current Streak: {streak+1} days*"
+    else :
+        msg += f"\n*Current Streak: 1 day*"
     return msg
 
 

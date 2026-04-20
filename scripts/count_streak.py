@@ -12,45 +12,7 @@ from pathlib import Path
 
 # 親ディレクトリの utils パッケージをインポート
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from utils import hash_id, save_streak, post_to_slack, fetch_submissions
-
-
-def load_members():
-    """メンバー情報を環境変数またはファイルから読み込む"""
-    import json
-    
-    # 環境変数 MEMBERS_YAML から取得（優先度最高）
-    members_yaml = os.environ.get('MEMBERS_YAML')
-    if members_yaml:
-        try:
-            data = yaml.safe_load(members_yaml)
-            if data and 'members' in data:
-                return {m['atcoder_id']: m['display_name'] for m in data['members']}
-        except Exception as e:
-            print(f"Warning: MEMBERS_YAML の解析に失敗: {e}")
-
-    # 環境変数 MEMBERS_JSON から取得（フォールバック）
-    members_json = os.environ.get('MEMBERS_JSON')
-    if members_json:
-        try:
-            data = json.loads(members_json)
-            return {m['atcoder_id']: m['display_name'] for m in data}
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"Warning: MEMBERS_JSON の解析に失敗: {e}")
-
-    # ファイルから取得（フォールバック）
-    members_file = Path(__file__).parent.parent / 'data' / 'members.yml'
-    if members_file.exists():
-        try:
-            with open(members_file, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
-                if data and 'members' in data:
-                    return {m['atcoder_id']: m['display_name'] for m in data['members']}
-        except Exception as e:
-            print(f"Warning: members.yml の読み込みに失敗: {e}")
-
-    print("Error: メンバー情報が見つかりません（MEMBERS_YAML 環境変数、MEMBERS_JSON、または data/members.yml を設定してください）")
-    return {}
+from utils import hash_id, save_streak, post_to_slack, fetch_submissions, load_members
 
 
 def extract_ac_dates(submissions):
@@ -178,10 +140,11 @@ def save_streak_data(streak_data):
 
 
 def main():
-    # メンバー情報を読み込む
-    members_dict = load_members()
-    if not members_dict:
+    # メンバー情報を読み込む（list[dict] から dict に変換）
+    members_list = load_members()
+    if not members_list:
         return
+    members_dict = {m['atcoder_id']: m['display_name'] for m in members_list}
 
     today = datetime.now().date()
     streak_data = {}

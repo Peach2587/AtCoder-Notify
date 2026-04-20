@@ -18,13 +18,11 @@ import yaml
 
 # 親ディレクトリの utils パッケージをインポート
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from utils import hash_id, load_state, save_state, load_streak, save_streak, fetch_submissions, post_to_slack, REPO_ROOT, JST
+from utils import hash_id, load_state, save_state, load_streak, save_streak, fetch_submissions, post_to_slack, load_members, REPO_ROOT, JST
 
 # ──────────────────────────────────────────────
 # パス設定
 # ──────────────────────────────────────────────
-MEMBERS_FILE = REPO_ROOT / "data" / "members.yml"
-
 # API リクエスト間のウェイト（レート制限対策）
 REQUEST_INTERVAL_SEC = 1.0
 
@@ -32,13 +30,6 @@ REQUEST_INTERVAL_SEC = 1.0
 # ──────────────────────────────────────────────
 # ヘルパー関数
 # ──────────────────────────────────────────────
-
-def load_members() -> list[dict]:
-    """data/members.yml を読み込んでメンバーリストを返す"""
-    with open(MEMBERS_FILE, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return data.get("members", [])
-
 
 def build_slack_message(
     display_name: str,
@@ -60,6 +51,42 @@ def build_slack_message(
     # else:
     #     msg += f"\n*Current Streak: 1 day*"
     return msg
+
+
+def update_streak_for_date(
+    hkey: str,
+    ac_date: str,
+    streak_state: dict,
+) -> int:
+    """
+    指定された日付のストリークを計算・更新する
+    昨日から連続していれば +1、そうでなければ 1 にリセット
+    
+    Args:
+        hkey: ハッシュ化されたユーザーID
+        ac_date: AC日付（ISO形式: YYYY-MM-DD）
+        streak_state: ストリーク情報辞書
+    
+    Returns:
+        新しいストリーク日数
+    """
+    prev_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
+    
+    # 前回のAC日が「昨日」かどうかを判定
+    yesterday_str = (
+        datetime.datetime.fromisoformat(ac_date)
+        - datetime.timedelta(days=1)
+    ).date().isoformat()
+    
+    if prev_ac_date == yesterday_str:
+        # 昨日から連続 → ストリーク継続
+        prev_streak = streak_state.get(f"{hkey}_streak", 0)
+        new_streak = prev_streak + 1
+    else:
+        # 昨日ではない → ストリークリセット
+        new_streak = 1
+    
+    return new_streak
 
 
 # ──────────────────────────────────────────────
@@ -89,7 +116,6 @@ def main() -> None:
 
         # 本日すでに「初AC通知（ストリーク付き）」を送信済みかどうか
         last_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
-        first_ac_today_notified = False
 
         print(f"[INFO] {atcoder_id} の提出を確認中 (from_second={from_second}) ...")
         submissions = fetch_submissions(atcoder_id, from_second)
@@ -113,30 +139,15 @@ def main() -> None:
                 sub["epoch_second"], tz=JST
             ).date().isoformat()
 
-            streak: int | None = None
-            if (
-                sub_date == today_str
-                and last_ac_date != today_str
-                and not first_ac_today_notified
-            ):
-                # 本日初AC → state のメモからストリークを計算
-                # 前回のACが昨日なら streak+1、それ以外はリセットして1
-                yesterday_str = (
-                    datetime.datetime.now(JST).date()
-                    - datetime.timedelta(days=1)
-                ).isoformat()
-                prev_streak: int = streak_state.get(f"{hkey}_streak", 0)
-                if last_ac_date == yesterday_str:
-                    streak = prev_streak + 1
-                else:
-                    streak = 1
-                print(f"[INFO] {atcoder_id} の本日初AC。streak={streak}")
-                streak_state[f"{hkey}_streak"] = streak
-                streak_state[f"{hkey}_last_ac_date"] = today_str
-                first_ac_today_notified = True
+            # 新規AC検出 → ストリークを計算・更新
+            new_streak = update_streak_for_date(hkey, sub_date, streak_state)
+            streak_state[f"{hkey}_streak"] = new_streak
+            streak_state[f"{hkey}_last_ac_date"] = sub_date
 
-            message = build_slack_message(display_name, sub, streak)
+            message = build_slack_message(display_name, sub, new_streak)
             post_to_slack(message)
+            print(f"[INFO] {atcoder_id}: AC on {sub_date}, streak={new_streak}")
+            
             new_last_id = max(new_last_id, sub["id"])
             new_last_epoch = max(new_last_epoch, sub["epoch_second"])
 

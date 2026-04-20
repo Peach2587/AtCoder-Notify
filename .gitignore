@@ -1,2 +1,4 @@
-# メンバー情報はリポジトリに含めない（GitHub Secrets の MEMBERS_YAML で管理）
-data/
+# data/ 下のファイルは除外（ただし JSON ファイルは追跡）
+data/*
+!data/last_submission_ids.json
+!data/streak.json

@@ -11,7 +11,7 @@
 
 from .api_utils import fetch_submissions
 from .constants import JST, REPO_ROOT, SLACK_WEBHOOK_URL, STATE_FILE, STREAK_FILE, SUBMISSIONS_API
-from .file_utils import load_state, load_streak, save_state, save_streak
+from .file_utils import load_state, load_streak, save_state, save_streak, load_members
 from .hash_utils import hash_id
 from .slack_utils import post_to_slack
 
@@ -27,6 +27,7 @@ __all__ = [
     "save_state",
     "load_streak",
     "save_streak",
+    "load_members",
     "fetch_submissions",
     "post_to_slack",
 ]

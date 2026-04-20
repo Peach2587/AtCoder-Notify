@@ -3,8 +3,55 @@
 """
 
 import json
+import os
+import yaml
 
-from .constants import STATE_FILE, STREAK_FILE
+from .constants import STATE_FILE, STREAK_FILE, REPO_ROOT
+
+
+def load_members() -> list[dict]:
+    """
+    メンバー情報を環境変数またはファイルから読み込む（優先度順）
+    
+    1. MEMBERS_YAML 環境変数
+    2. MEMBERS_JSON 環境変数
+    3. data/members.yml ファイル
+    
+    Returns:
+        メンバーのリスト: [{'atcoder_id': '...', 'display_name': '...'}, ...]
+    """
+    # 環境変数 MEMBERS_YAML から取得（優先度最高）
+    members_yaml = os.environ.get('MEMBERS_YAML')
+    if members_yaml:
+        try:
+            data = yaml.safe_load(members_yaml)
+            if data and 'members' in data:
+                return data['members']
+        except Exception as e:
+            print(f"[WARN] MEMBERS_YAML の解析に失敗: {e}")
+
+    # 環境変数 MEMBERS_JSON から取得（フォールバック）
+    members_json = os.environ.get('MEMBERS_JSON')
+    if members_json:
+        try:
+            data = json.loads(members_json)
+            return data if isinstance(data, list) else []
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"[WARN] MEMBERS_JSON の解析に失敗: {e}")
+
+    # ファイルから取得（フォールバック）
+    members_file = REPO_ROOT / "data" / "members.yml"
+    if members_file.exists():
+        try:
+            with open(members_file, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data and 'members' in data:
+                    return data.get("members", [])
+        except Exception as e:
+            print(f"[WARN] {members_file} の読み込みに失敗: {e}")
+
+    print("[ERROR] メンバー情報が見つかりません（MEMBERS_YAML 環境変数、MEMBERS_JSON、または data/members.yml を設定してください）")
+    return []
 
 
 def load_state() -> dict:

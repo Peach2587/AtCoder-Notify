@@ -2,3 +2,22 @@
 data/*
 !data/last_submission_ids.json
 !data/streak.json
+
+# Python 仮想環境（uv含む）
+.venv/
+venv/
+env/
+ENV/
+
+# Python キャッシュ
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# 開発・テストツール
+.pytest_cache/
+.coverage
+.env.local

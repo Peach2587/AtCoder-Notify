@@ -7,33 +7,23 @@ AtCoder AC 通知スクリプト
 """
 
 import datetime
-import hashlib
 import json
 import os
 import sys
 import time
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import requests
 import yaml
 
-JST = ZoneInfo("Asia/Tokyo")
+# 親ディレクトリの utils パッケージをインポート
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from utils import hash_id, load_state, save_state, load_streak, save_streak, fetch_submissions, post_to_slack, REPO_ROOT, JST
 
 # ──────────────────────────────────────────────
 # パス設定
 # ──────────────────────────────────────────────
-REPO_ROOT = Path(__file__).resolve().parent.parent
 MEMBERS_FILE = REPO_ROOT / "data" / "members.yml"
-
-# AtCoder Problems API
-SUBMISSIONS_API = "https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions"
-
-STATE_FILE  = REPO_ROOT / "data" / "last_submission_ids.json"
-STREAK_FILE = REPO_ROOT / "data" / "streak.json"
-
-# Slack Webhook URL（GitHub Secrets から注入）
-SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "")
 
 # API リクエスト間のウェイト（レート制限対策）
 REQUEST_INTERVAL_SEC = 1.0
@@ -43,59 +33,11 @@ REQUEST_INTERVAL_SEC = 1.0
 # ヘルパー関数
 # ──────────────────────────────────────────────
 
-def hash_id(atcoder_id: str) -> str:
-    """AtCoder ID を SHA-256 でハッシュ化してキーとして使う（JSONに生IDを残さないため）"""
-    return hashlib.sha256(atcoder_id.encode()).hexdigest()[:16]
-
-
 def load_members() -> list[dict]:
     """data/members.yml を読み込んでメンバーリストを返す"""
     with open(MEMBERS_FILE, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return data.get("members", [])
-
-
-def load_state() -> dict:
-    """data/last_submission_ids.json を読み込む。ファイルがなければ空dictを返す"""
-    if STATE_FILE.exists():
-        with open(STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def save_state(state: dict) -> None:
-    """data/last_submission_ids.json に状態を保存する"""
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-
-
-def load_streak() -> dict:
-    """data/streak.json を読み込む。ファイルがなければ空dictを返す"""
-    if STREAK_FILE.exists():
-        with open(STREAK_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def save_streak(streak_state: dict) -> None:
-    """data/streak.json にストリーク情報を保存する"""
-    with open(STREAK_FILE, "w", encoding="utf-8") as f:
-        json.dump(streak_state, f, ensure_ascii=False, indent=2)
-
-
-def fetch_submissions(atcoder_id: str, from_second: int) -> list[dict]:
-    """
-    AtCoder Problems API からユーザーの提出履歴を取得する。
-    from_second 以降（Unix 秒）の提出のみ返す。
-    """
-    params = {"user": atcoder_id, "from_second": from_second}
-    try:
-        response = requests.get(SUBMISSIONS_API, params=params, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
-        print(f"[ERROR] API request failed for {atcoder_id}: {e}", file=sys.stderr)
-        return []
 
 
 def build_slack_message(
@@ -118,20 +60,6 @@ def build_slack_message(
     # else:
     #     msg += f"\n*Current Streak: 1 day*"
     return msg
-
-
-def post_to_slack(message: str) -> None:
-    """Slack Incoming Webhook にメッセージを送信する"""
-    if not SLACK_WEBHOOK_URL:
-        print("[WARN] SLACK_WEBHOOK_URL が設定されていません。通知をスキップします。", file=sys.stderr)
-        return
-    payload = {"text": message}
-    try:
-        response = requests.post(SLACK_WEBHOOK_URL, json=payload, timeout=10)
-        response.raise_for_status()
-        print(f"[INFO] Slack 通知送信: {message}")
-    except requests.RequestException as e:
-        print(f"[ERROR] Slack 通知に失敗しました: {e}", file=sys.stderr)
 
 
 # ──────────────────────────────────────────────

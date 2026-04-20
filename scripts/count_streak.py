@@ -154,8 +154,8 @@ def notify_slack(streak_data, members_dict, today):
         # message_lines.append(f"{status} *{display_name}* ({atcoder_id}): {streak} days | Last AC: {last_ac_str}")
         message_lines.append(f"{status} *{atcoder_id}* : {streak} days | Last AC: {last_ac_str}")
 
-    message_lines.append("")
-    message_lines.append(f"*Total Active Streak:* {total_streak} days ({active_users} active)")
+    # message_lines.append("")
+    # message_lines.append(f"*Total Active Streak:* {total_streak} days ({active_users} active)")
 
     message = "\n".join(message_lines)
     post_to_slack(message)

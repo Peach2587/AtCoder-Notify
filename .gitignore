@@ -1,2 +1,2 @@
 # メンバー情報はリポジトリに含めない（GitHub Secrets の MEMBERS_YAML で管理）
-data/members.yml
+data/

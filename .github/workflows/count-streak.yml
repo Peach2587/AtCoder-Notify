@@ -1,0 +1,28 @@
+name: Count AtCoder Streak
+
+on:
+  workflow_dispatch:  # 手動実行のみ
+
+permissions:
+  contents: read
+
+jobs:
+  count-streak:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests pyyaml
+
+      - name: Run streak counter script
+        env:
+          MEMBERS_YAML: ${{ secrets.MEMBERS_YAML }}
+        run: python scripts/count_streak.py

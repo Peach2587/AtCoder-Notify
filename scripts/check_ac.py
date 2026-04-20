@@ -46,10 +46,9 @@ def build_slack_message(
         f":accepted: *{display_name}* が "
         f"<{problem_url}|{problem_label}> を AC しました！"
     )
-    # if streak and streak > 1:
-    #     msg += f"\n*Current Streak: {streak+1} days*"
-    # else:
-    #     msg += f"\n*Current Streak: 1 day*"
+    # その日初めてのAC（streak情報がある）の場合はstreak情報を付加
+    if streak is not None:
+        msg += f"\nCurrent Streak: {streak} days"
     return msg
 
 
@@ -139,12 +138,18 @@ def main() -> None:
                 sub["epoch_second"], tz=JST
             ).date().isoformat()
 
+            # 前回のAC日を取得（新しい日付かどうかを判定するため）
+            prev_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
+            is_first_ac_on_this_date = (prev_ac_date != sub_date)
+
             # 新規AC検出 → ストリークを計算・更新
             new_streak = update_streak_for_date(hkey, sub_date, streak_state)
             streak_state[f"{hkey}_streak"] = new_streak
             streak_state[f"{hkey}_last_ac_date"] = sub_date
 
-            message = build_slack_message(display_name, sub, new_streak)
+            # その日初めてのACの場合、streak情報を含めて通知
+            streak_info = new_streak if is_first_ac_on_this_date else None
+            message = build_slack_message(display_name, sub, streak_info)
             post_to_slack(message)
             print(f"[INFO] {atcoder_id}: AC on {sub_date}, streak={new_streak}")
             

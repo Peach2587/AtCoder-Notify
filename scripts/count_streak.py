@@ -12,6 +12,85 @@ from pathlib import Path
 from collections import defaultdict
 
 
+def save_streak_to_json(streak_data):
+    """streak情報をdata/streak.jsonに保存"""
+    streak_file = Path(__file__).parent.parent / 'data' / 'streak.json'
+    
+    # 既存のデータを読み込む
+    existing_data = {}
+    if streak_file.exists():
+        try:
+            with open(streak_file, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+        except Exception as e:
+            print(f"Warning: 既存の streak.json 読み込み失敗: {e}")
+    
+    # 新しいデータで更新
+    for atcoder_id, data in streak_data.items():
+        existing_data[f"{atcoder_id}_streak"] = data['streak']
+        last_ac_date = data['last_ac_date']
+        if last_ac_date:
+            existing_data[f"{atcoder_id}_last_ac_date"] = last_ac_date.strftime('%Y-%m-%d')
+    
+    # ファイルに保存
+    try:
+        with open(streak_file, 'w', encoding='utf-8') as f:
+            json.dump(existing_data, f, ensure_ascii=False, indent=2)
+        print(f"✓ 保存完了: {streak_file}")
+    except Exception as e:
+        print(f"Error: streak.json 保存に失敗: {e}")
+
+
+def notify_slack(streak_data, members_dict, today):
+    """streak情報をSlackで通知"""
+    slack_webhook = os.environ.get('SLACK_WEBHOOK_URL')
+    if not slack_webhook:
+        print("Warning: SLACK_WEBHOOK_URL が設定されていません。Slack通知をスキップします。")
+        return
+
+    # ストリーク情報をまとめたメッセージを作成
+    message_lines = [":accepted: *AtCoder Streak Report*"]
+    message_lines.append(f"_as of {today}_\n")
+
+    total_streak = 0
+    active_users = 0
+    yesterday = today - timedelta(days=1)
+
+    for atcoder_id in sorted(members_dict.keys()):
+        display_name = members_dict[atcoder_id]
+        streak = streak_data[atcoder_id]['streak']
+        last_ac_date = streak_data[atcoder_id]['last_ac_date']
+
+        if last_ac_date:
+            is_active = last_ac_date == today or last_ac_date == yesterday
+            if is_active:
+                status = "🔥"
+                active_users += 1
+                total_streak += streak
+            else:
+                status = "⚠️"
+        else:
+            status = "❌"
+
+        last_ac_str = last_ac_date.strftime('%Y-%m-%d') if last_ac_date else "N/A"
+        # message_lines.append(f"{status} *{display_name}* ({atcoder_id}): {streak} days | Last AC: {last_ac_str}")
+        message_lines.append(f"{status} *{atcoder_id}* : {streak} days | Last AC: {last_ac_str}")
+
+    message_lines.append("")
+    # message_lines.append(f"*Total Active Streak:* {total_streak} days ({active_users} active)")
+
+    payload = {
+        "text": "\n".join(message_lines)
+    }
+
+    try:
+        response = requests.post(slack_webhook, json=payload, timeout=10)
+        response.raise_for_status()
+        print("✓ Slack通知完了")
+    except Exception as e:
+        print(f"Warning: Slack通知に失敗: {e}")
+
+
 def load_members():
     """メンバー情報を環境変数またはファイルから読み込む"""
     # 環境変数 MEMBERS_YAML から取得（優先度最高）
@@ -159,6 +238,14 @@ def main():
 
     # 結果を表示
     display_streak_info(members_dict, streak_data, today)
+
+    # streak.json に保存
+    print("\nデータを保存中...")
+    save_streak_to_json(streak_data)
+
+    # Slack に通知
+    print("Slack通知を送信中...")
+    notify_slack(streak_data, members_dict, today)
 
 
 if __name__ == '__main__':

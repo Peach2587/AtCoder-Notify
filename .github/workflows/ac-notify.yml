@@ -3,7 +3,12 @@ name: AtCoder AC Notify
 on:
   schedule:
     - cron: "2-57/5 * * * *"   # 10分ごとに実行
-  workflow_dispatch:          # 手動実行も可能
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: '通知先のSlackチャンネルID'
+        required: false
+        default: ''
 
 permissions:
   contents: write             # last_submission_ids.json を commit & push するため

@@ -120,6 +120,9 @@ def main() -> None:
 
     # 初回実行時に過去提出を大量通知しないよう、現在時刻の15分前を下限にする
     default_from_second = int(time.time()) - 15 * 60
+    
+    # この実行で新しいAC提出があったかどうかを追跡
+    has_new_submissions = False
 
     for member in members:
         atcoder_id: str = member["atcoder_id"]
@@ -171,6 +174,7 @@ def main() -> None:
             message = build_slack_message(display_name, sub, streak_info)
             post_to_slack(message, channel_id=channel_id)
             print(f"[INFO] {atcoder_id}: AC on {sub_date}, streak={new_streak}")
+            has_new_submissions = True
             
             new_last_id = max(new_last_id, sub["id"])
             new_last_epoch = max(new_last_epoch, sub["epoch_second"])
@@ -184,6 +188,12 @@ def main() -> None:
     save_state(state)
     save_streak(streak_state)
     print("[INFO] 状態ファイルを更新しました。")
+    
+    # 提出がなかった場合は Slack で通知
+    if not has_new_submissions:
+        message = "there were no new AC submissions"
+        post_to_slack(message, channel_id=channel_id)
+        print("[INFO] 新しい提出がなかったことを通知しました。")
 
 
 if __name__ == "__main__":

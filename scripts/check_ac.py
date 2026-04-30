@@ -105,16 +105,30 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="通知先の Slack チャンネルID（指定時は Bot API を使用）",
     )
+    parser.add_argument(
+        "--user_id",
+        type=str,
+        default="",
+        help="対象の AtCoder ユーザーID（指定時はこのユーザーのみをチェック）",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     channel_id = args.channel_id if args.channel_id else None
+    user_id = args.user_id if args.user_id else None
     
     members = load_members()
     state = load_state()
     streak_state = load_streak()
+
+    # user_id が指定されている場合は、該当ユーザーのみをフィルタリング
+    if user_id:
+        members = [m for m in members if m["atcoder_id"] == user_id]
+        if not members:
+            print(f"[ERROR] ユーザー {user_id} が見つかりません。")
+            return
 
     today_str = datetime.datetime.now(JST).date().isoformat()
 

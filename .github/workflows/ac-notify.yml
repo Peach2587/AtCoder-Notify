@@ -9,6 +9,11 @@ on:
         description: '通知先のSlackチャンネルID'
         required: false
         default: ''
+      user_id:
+        description: '対象のAtCoderユーザーID'
+        required: false
+        default: ''
+
 
 permissions:
   contents: write             # last_submission_ids.json を commit & push するため
@@ -40,7 +45,7 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: python scripts/check_ac.py --channel_id ${{ github.event.inputs.channel_id }}
+        run: python scripts/check_ac.py --channel_id ${{ github.event.inputs.channel_id }} --user_id ${{ github.event.inputs.user_id }}
 
       - name: Commit and push state file
         run: |

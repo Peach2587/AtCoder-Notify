@@ -27,6 +27,12 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="通知先の Slack チャンネルID（指定時は Bot API を使用）",
     )
+    parser.add_argument(
+        "--user_id",
+        type=str,
+        default="",
+        help="対象の AtCoder ユーザーID（指定時はこのユーザーのみを集計）",
+    )
     return parser.parse_args()
 
 
@@ -196,12 +202,20 @@ def save_streak_data(streak_data):
 def main():
     args = parse_args()
     channel_id = args.channel_id if args.channel_id else None
+    user_id = args.user_id if args.user_id else None
     
     # メンバー情報を読み込む（list[dict] から dict に変換）
     members_list = load_members()
     if not members_list:
         return
     members_dict = {m['atcoder_id']: m['display_name'] for m in members_list}
+    
+    # user_id が指定されている場合は、該当ユーザーのみをフィルタリング
+    if user_id:
+        if user_id not in members_dict:
+            print(f"[ERROR] ユーザー {user_id} が見つかりません。")
+            return
+        members_dict = {user_id: members_dict[user_id]}
 
     today = datetime.now().date()
     streak_data = {}

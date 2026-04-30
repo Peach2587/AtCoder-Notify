@@ -199,9 +199,13 @@ def main() -> None:
 
         time.sleep(REQUEST_INTERVAL_SEC)
 
-    save_state(state)
-    save_streak(streak_state)
-    print("[INFO] 状態ファイルを更新しました。")
+    # channel_id が指定されていない場合（スケジュール実行）のみ状態ファイルを更新
+    if not channel_id:
+        save_state(state)
+        save_streak(streak_state)
+        print("[INFO] 状態ファイルを更新しました。")
+    else:
+        print("[INFO] 手動実行のため、状態ファイルは更新されません。")
     
     # 提出がなかった場合は Slack で通知
     if not has_new_submissions:

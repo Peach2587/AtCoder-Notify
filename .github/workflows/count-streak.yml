@@ -37,7 +37,7 @@ jobs:
           MEMBERS_YAML: ${{ secrets.MEMBERS_YAML }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: python scripts/count_streak.py --channel_id ${{ github.event.inputs.channel_id }} --user_id ${{ github.event.inputs.user_id }}
+        run: python scripts/count_streak.py --channel_id "${{ github.event.inputs.channel_id }}" --user_id "${{ github.event.inputs.user_id }}"
 
       - name: Commit and push updated streak data
         run: |

@@ -1,7 +1,12 @@
 name: Count AtCoder Streak
 
 on:
-  workflow_dispatch:  # 手動実行のみ
+  workflow_dispatch:
+    inputs:
+      channel_id:
+        description: '通知先のSlackチャンネルID'
+        required: false
+        default: ''
 
 permissions:
   contents: write  # streak.json を commit & push するため

@@ -13,7 +13,7 @@ from pathlib import Path
 
 # 親ディレクトリの utils パッケージをインポート
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from utils import hash_id, save_streak, post_to_slack, fetch_submissions, load_members
+from utils import hash_id, save_streak, post_to_slack, fetch_submissions, load_members, load_streak
 
 
 def parse_args() -> argparse.Namespace:
@@ -183,11 +183,18 @@ def notify_slack(streak_data, members_dict, today, channel_id: str | None = None
     post_to_slack(message, channel_id=channel_id)
 
 
-def save_streak_data(streak_data):
+def save_streak_data(streak_data, is_partial_update: bool = False):
     """streak情報をdata/streak.jsonに保存（utils.py の save_streak() を使用）"""
     # utils の save_streak() 用に形式を変換
     import json
     streak_dict = {}
+    
+    # 部分更新の場合は既存データを読み込む
+    if is_partial_update:
+        existing_streak = load_streak()
+        streak_dict.update(existing_streak)
+    
+    # 新しいデータをマージ
     for atcoder_id, data in streak_data.items():
         hkey = hash_id(atcoder_id)
         streak_dict[f"{hkey}_streak"] = data['streak']
@@ -250,9 +257,9 @@ def main():
     # 結果を表示
     display_streak_info(members_dict, streak_data, today)
 
-    # streak.json に保存
+    # streak.json に保存（user_id が指定されている場合は部分更新）
     print("\nデータを保存中...")
-    save_streak_data(streak_data)
+    save_streak_data(streak_data, is_partial_update=(user_id is not None))
 
     # Slack に通知
     print("Slack通知を送信中...")

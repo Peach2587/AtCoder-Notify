@@ -3,6 +3,7 @@
 AtCoder Problems API を使用してstreak日数を確認・集計するスクリプト
 """
 
+import argparse
 import os
 import sys
 import time
@@ -13,6 +14,20 @@ from pathlib import Path
 # 親ディレクトリの utils パッケージをインポート
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils import hash_id, save_streak, post_to_slack, fetch_submissions, load_members
+
+
+def parse_args() -> argparse.Namespace:
+    """コマンドラインオプションをパースする"""
+    parser = argparse.ArgumentParser(
+        description="AtCoder Streak カウンタースクリプト"
+    )
+    parser.add_argument(
+        "--channel_id",
+        type=str,
+        default="",
+        help="通知先の Slack チャンネルID（指定時は Bot API を使用）",
+    )
+    return parser.parse_args()
 
 
 def extract_ac_dates(submissions):
@@ -86,7 +101,7 @@ def display_streak_info(members_dict, streak_data, today):
     print()
 
 
-def notify_slack(streak_data, members_dict, today):
+def notify_slack(streak_data, members_dict, today, channel_id: str | None = None):
     """streak情報をSlackで通知"""
     # ストリーク情報をまとめたメッセージを作成
     message_lines = [":accepted: *AtCoder Streak Report*"]
@@ -120,7 +135,7 @@ def notify_slack(streak_data, members_dict, today):
     # message_lines.append(f"*Total Active Streak:* {total_streak} days ({active_users} active)")
 
     message = "\n".join(message_lines)
-    post_to_slack(message)
+    post_to_slack(message, channel_id=channel_id)
 
 
 def save_streak_data(streak_data):
@@ -140,6 +155,9 @@ def save_streak_data(streak_data):
 
 
 def main():
+    args = parse_args()
+    channel_id = args.channel_id if args.channel_id else None
+    
     # メンバー情報を読み込む（list[dict] から dict に変換）
     members_list = load_members()
     if not members_list:
@@ -185,7 +203,7 @@ def main():
 
     # Slack に通知
     print("Slack通知を送信中...")
-    notify_slack(streak_data, members_dict, today)
+    notify_slack(streak_data, members_dict, today, channel_id=channel_id)
 
 
 if __name__ == '__main__':

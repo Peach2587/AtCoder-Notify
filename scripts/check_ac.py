@@ -6,6 +6,7 @@ AtCoder AC 通知スクリプト
 - 通知済みの最新提出IDを data/last_submission_ids.json に保存する
 """
 
+import argparse
 import datetime
 import json
 import os
@@ -35,6 +36,7 @@ def build_slack_message(
     display_name: str,
     submission: dict,
     streak: int | None = None,
+    channel_id: str | None = None,
 ) -> str:
     """Slack 通知用のメッセージ文字列を生成する"""
     contest_id = submission.get("contest_id", "")
@@ -92,7 +94,24 @@ def update_streak_for_date(
 # メイン処理
 # ──────────────────────────────────────────────
 
+def parse_args() -> argparse.Namespace:
+    """コマンドラインオプションをパースする"""
+    parser = argparse.ArgumentParser(
+        description="AtCoder AC 通知スクリプト"
+    )
+    parser.add_argument(
+        "--channel_id",
+        type=str,
+        default="",
+        help="通知先の Slack チャンネルID（指定時は Bot API を使用）",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+    channel_id = args.channel_id if args.channel_id else None
+    
     members = load_members()
     state = load_state()
     streak_state = load_streak()
@@ -150,7 +169,7 @@ def main() -> None:
             # その日初めてのACの場合、streak情報を含めて通知
             streak_info = new_streak if is_first_ac_on_this_date else None
             message = build_slack_message(display_name, sub, streak_info)
-            post_to_slack(message)
+            post_to_slack(message, channel_id=channel_id)
             print(f"[INFO] {atcoder_id}: AC on {sub_date}, streak={new_streak}")
             
             new_last_id = max(new_last_id, sub["id"])

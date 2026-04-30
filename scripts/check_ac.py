@@ -207,8 +207,8 @@ def main() -> None:
     else:
         print("[INFO] 手動実行のため、状態ファイルは更新されません。")
     
-    # 提出がなかった場合は Slack で通知
-    if not has_new_submissions:
+    # channel_id が指定されている場合（手動実行）かつ 提出がなかった場合は Slack で通知
+    if channel_id and not has_new_submissions:
         message = "there were no new AC submissions"
         post_to_slack(message, channel_id=channel_id)
         print("[INFO] 新しい提出がなかったことを通知しました。")

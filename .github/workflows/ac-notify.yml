@@ -39,7 +39,7 @@ jobs:
       - name: Run AC check script
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: python scripts/check_ac.py
+        run: python scripts/check_ac.py --channel_id ${{ github.event.inputs.channel_id }}
 
       - name: Commit and push state file
         run: |

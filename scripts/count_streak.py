@@ -14,6 +14,7 @@ from pathlib import Path
 # 親ディレクトリの utils パッケージをインポート
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils import hash_id, save_streak, post_to_slack, fetch_submissions, load_members, load_streak
+from utils.constants import JST
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,13 +38,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def extract_ac_dates(submissions):
-    """提出履歴から AC 日付を抽出（日付ごとに1回のみ）"""
+    """提出履歴から AC 日付を抽出（日付ごとに1回のみ、JST で統一）"""
     ac_dates = set()
     for submission in submissions:
         if submission.get('result') == 'AC':
-            # Unix timestamp をDateに変換
+            # Unix timestamp を JST の Date に変換（環境依存を排除）
             timestamp = submission.get('epoch_second', 0)
-            ac_date = datetime.fromtimestamp(timestamp).date()
+            ac_date = datetime.fromtimestamp(timestamp, tz=JST).date()
             ac_dates.add(ac_date)
     return sorted(ac_dates, reverse=True)  # 最新の日付が最初
 
@@ -224,7 +225,7 @@ def main():
             return
         members_dict = {user_id: members_dict[user_id]}
 
-    today = datetime.now().date()
+    today = datetime.now(JST).date()
     streak_data = {}
     
     # 直近400件の提出を取得するため、過去3ヶ月を from_second に設定

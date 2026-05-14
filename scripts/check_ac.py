@@ -79,7 +79,7 @@ def update_streak_for_date(
         - datetime.timedelta(days=1)
     ).date().isoformat()
     
-    if prev_ac_date == yesterday_str:
+    if prev_ac_date >= yesterday_str:
         # 昨日から連続 → ストリーク継続
         prev_streak = streak_state.get(f"{hkey}_streak", 0)
         new_streak = prev_streak + 1

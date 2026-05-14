@@ -5,9 +5,6 @@ peach2587の提出履歴をデバッグするスクリプト
 
 import requests
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-
-JST = ZoneInfo("Asia/Tokyo")
 
 atcoder_id = "peach2587"
 url = f"https://kenkoooo.com/atcoder/atcoder-api/v3/user/submissions?user={atcoder_id}"
@@ -25,12 +22,12 @@ try:
     ac_submissions = [s for s in submissions if s.get('result') == 'AC']
     print(f"AC提出数: {len(ac_submissions)}\n")
     
-    # AC日付を抽出（JST で統一）
+    # AC日付を抽出
     ac_dates = set()
     for submission in ac_submissions:
         timestamp = submission.get('epoch_second', 0)
         if timestamp:
-            ac_date = datetime.fromtimestamp(timestamp, tz=JST).date()
+            ac_date = datetime.fromtimestamp(timestamp).date()
             ac_dates.add(ac_date)
     
     ac_dates_sorted = sorted(ac_dates, reverse=True)
@@ -40,8 +37,8 @@ try:
     for i, date in enumerate(ac_dates_sorted[:10]):
         print(f"  {i+1}. {date}")
     
-    # Streak計算（JST で統一）
-    today = datetime.now(JST).date()
+    # Streak計算
+    today = datetime.now().date()
     yesterday = today - timedelta(days=1)
     
     if not ac_dates_sorted:

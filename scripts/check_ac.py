@@ -79,7 +79,7 @@ def update_streak_for_date(
         - datetime.timedelta(days=1)
     ).date().isoformat()
     
-    if prev_ac_date >= yesterday_str:
+    if prev_ac_date == yesterday_str:
         # 昨日から連続 → ストリーク継続
         prev_streak = streak_state.get(f"{hkey}_streak", 0)
         new_streak = prev_streak + 1
@@ -178,10 +178,14 @@ def main() -> None:
             prev_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
             is_first_ac_on_this_date = (prev_ac_date != sub_date)
 
-            # 新規AC検出 → ストリークを計算・更新
-            new_streak = update_streak_for_date(hkey, sub_date, streak_state)
-            streak_state[f"{hkey}_streak"] = new_streak
-            streak_state[f"{hkey}_last_ac_date"] = sub_date
+            # その日初めてのACの場合のみストリークを計算・更新
+            if is_first_ac_on_this_date:
+                new_streak = update_streak_for_date(hkey, sub_date, streak_state)
+                streak_state[f"{hkey}_streak"] = new_streak
+                streak_state[f"{hkey}_last_ac_date"] = sub_date
+            else:
+                # 同じ日の2件目以降のAC提出の場合は既存のstreakを保持
+                new_streak = streak_state.get(f"{hkey}_streak", 0)
 
             # その日初めてのACの場合、streak情報を含めて通知
             streak_info = new_streak if is_first_ac_on_this_date else None

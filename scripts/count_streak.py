@@ -187,14 +187,13 @@ def build_slack_blocks(members_dict, streak_data, today):
         ]
     })
     
-    # テーブル形式（mrkdwn使用）
-    table_lines = []
-    table_lines.append("*Rank* | *Status* | *AtCoder ID* | *Streak* | *Last AC*")
-    table_lines.append(":-|:-|:-|:-|:-")
+    # テーブルヘッダー（固定幅フォント）
+    header_text = "```\nRank        Status    AtCoder ID           Streak    Last AC\n" + "─" * 75 + "\n"
     
     active_users = 0
     total_streak = 0
     
+    # データ行
     for rank, data in enumerate(ranking_data, 1):
         if data['is_active']:
             active_users += 1
@@ -203,22 +202,26 @@ def build_slack_blocks(members_dict, streak_data, today):
         last_ac_str = data['last_ac_date'].strftime('%Y-%m-%d') if data['last_ac_date'] else 'N/A'
         
         # ランク（メダル表示）
-        if rank == 1:
-            rank_text = "🥇 #1"
-        elif rank == 2:
-            rank_text = "🥈 #2"
-        elif rank == 3:
-            rank_text = "🥉 #3"
-        else:
-            rank_text = f"#{rank}"
+        # if rank == 1:
+        #     rank_text = "🥇 #1"
+        # elif rank == 2:
+        #     rank_text = "🥈 #2"
+        # elif rank == 3:
+        #     rank_text = "🥉 #3"
+        # else:
+        #     rank_text = f"#{rank}"
+        rank_text = f"#{rank}"
         
-        table_lines.append(f"{rank_text} | {data['status']} | `{data['atcoder_id']}` | *{data['streak']}* | {last_ac_str}")
+        # 固定幅で整形（Slack の monospace フォントで表示）
+        header_text += f"{rank_text:<12}{data['status']:<10}{data['atcoder_id']:<21}{data['streak']:<10}{last_ac_str}\n"
+    
+    header_text += "```"
     
     blocks.append({
         "type": "section",
         "text": {
             "type": "mrkdwn",
-            "text": "\n".join(table_lines)
+            "text": header_text
         }
     })
     

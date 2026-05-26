@@ -136,17 +136,101 @@ def display_streak_info(members_dict, streak_data, today):
     print(f"\n{table}\n")
 
 
+def build_slack_blocks(members_dict, streak_data, today):
+    """Block Kitを使ったSlack用リッチメッセージを生成"""
+    ranking_data = []
+    yesterday = today - timedelta(days=1)
+
+    for atcoder_id in members_dict.keys():
+        display_name = members_dict[atcoder_id]
+        streak = streak_data[atcoder_id]['streak']
+        last_ac_date = streak_data[atcoder_id]['last_ac_date']
+        
+        if last_ac_date:
+            is_active = last_ac_date == today or last_ac_date == yesterday
+            status = ':accepted:' if is_active else ':kishimoto:'
+        else:
+            is_active = False
+            status = '❌'
+        
+        ranking_data.append({
+            'atcoder_id': atcoder_id,
+            'display_name': display_name,
+            'streak': streak,
+            'last_ac_date': last_ac_date,
+            'status': status,
+            'is_active': is_active,
+        })
+    
+    # ストリーク日数で降順にソート
+    ranking_data.sort(key=lambda x: x['streak'], reverse=True)
+    
+    blocks = []
+    
+    # ヘッダー
+    blocks.append({
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": "🏆 AtCoder Streak Ranking"
+        }
+    })
+    
+    # サマリー
+    active_users = sum(1 for d in ranking_data if d['is_active'])
+    total_streak = sum(d['streak'] for d in ranking_data if d['is_active'])
+    
+    blocks.append({
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": f"*_as of {today}_*"
+        }
+    })
+    
+    # テーブルはセクションの複数行で表現
+    for rank, data in enumerate(ranking_data, 1):
+        last_ac_str = data['last_ac_date'].strftime('%Y-%m-%d') if data['last_ac_date'] else 'N/A'
+        
+        # ランク別に背景色を変える
+        if rank == 1:
+            text_content = f"🥇 {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+        elif rank == 2:
+            text_content = f"🥈 {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+        elif rank == 3:
+            text_content = f"🥉 {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+        else:
+            text_content = f"#{rank} {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+        
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": text_content
+            }
+        })
+    
+    # 区切り線
+    blocks.append({"type": "divider"})
+    
+    # フッター
+    blocks.append({
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": f"🔥 Active Users: {active_users} | 💯 Total Active Streak: {total_streak}"
+            }
+        ]
+    })
+    
+    return blocks
+
+
 def notify_slack(streak_data, members_dict, today, channel_id: str | None = None):
     """streak情報をSlackでランキング形式で通知"""
-    table, active_users, total_streak = generate_ranking_table(members_dict, streak_data, today)
-    
-    # ランキングメッセージを作成（テーブル形式、普通のテキスト）
-    message_lines = [f":accepted: *AtCoder Streak Ranking* _as of {today}_"]
-    message_lines.append("")
-    message_lines.append(table)
-    
-    message = "\n".join(message_lines)
-    post_to_slack(message, channel_id=channel_id)
+    blocks = build_slack_blocks(members_dict, streak_data, today)
+    post_to_slack(blocks=blocks, channel_id=channel_id)
 
 
 def save_streak_data(streak_data, is_partial_update: bool = False):

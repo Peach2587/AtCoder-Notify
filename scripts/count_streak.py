@@ -76,8 +76,8 @@ def calculate_streak(ac_dates, today):
     return streak, latest_ac_date
 
 
-def display_streak_info(members_dict, streak_data, today):
-    """ストリーク情報をランキング形式で表示"""
+def generate_ranking_table(members_dict, streak_data, today):
+    """ランキング情報をテーブル形式で生成（コンソール用）"""
     # ストリークデータをランキング用に整形
     ranking_data = []
     yesterday = today - timedelta(days=1)
@@ -89,7 +89,7 @@ def display_streak_info(members_dict, streak_data, today):
         
         if last_ac_date:
             is_active = last_ac_date == today or last_ac_date == yesterday
-            status = '🔥' if is_active else '⚠️'
+            status = ':accepted:' if is_active else ':kishimoto:'
         else:
             is_active = False
             status = '❌'
@@ -106,11 +106,12 @@ def display_streak_info(members_dict, streak_data, today):
     # ストリーク日数で降順にソート
     ranking_data.sort(key=lambda x: x['streak'], reverse=True)
     
-    # ランキング表示
-    print(f"\n{'🏆 AtCoder Streak Ranking (as of {today})':<75}")
-    print("=" * 75)
-    print(f"{'Rank':<6} | {'Status':<6} | {'AtCoder ID':<16} | {'Streak':<8} | {'Last AC':<12}")
-    print("-" * 75)
+    # テーブル行を生成
+    lines = []
+    lines.append(f"AtCoder Streak Ranking (as of {today})")
+    lines.append("=" * 75)
+    lines.append(f"{'Rank':<6} | {'Status':<4} | {'AtCoder ID':<16} | {'Streak':<8} | {'Last AC':<12}")
+    lines.append("-" * 75)
     
     total_streak = 0
     active_users = 0
@@ -122,63 +123,30 @@ def display_streak_info(members_dict, streak_data, today):
         
         last_ac_str = data['last_ac_date'].strftime('%Y-%m-%d') if data['last_ac_date'] else 'N/A'
         rank_str = f"#{rank}"
-        print(f"{rank_str:<6} | {data['status']:<6} | {data['atcoder_id']:<16} | {data['streak']:<8} | {last_ac_str:<12}")
+        lines.append(f"{rank_str:<6} | {data['status']}     | {data['atcoder_id']:<16} | {data['streak']:<8} | {last_ac_str:<12}")
     
-    print("=" * 75)
-    print(f"🔥 Active Users: {active_users} | 💯 Total Active Streak: {total_streak}")
-    print()
+    lines.append("=" * 75)
+    lines.append(f"🔥 Active Users: {active_users}")
+    
+    return "\n".join(lines), active_users, total_streak
+
+
+def display_streak_info(members_dict, streak_data, today):
+    """ストリーク情報をランキング形式で表示"""
+    table, _, _ = generate_ranking_table(members_dict, streak_data, today)
+    print(f"\n{table}\n")
 
 
 def notify_slack(streak_data, members_dict, today, channel_id: str | None = None):
     """streak情報をSlackでランキング形式で通知"""
-    # ストリークデータをランキング用に整形
-    ranking_data = []
-    yesterday = today - timedelta(days=1)
-
-    for atcoder_id in members_dict.keys():
-        display_name = members_dict[atcoder_id]
-        streak = streak_data[atcoder_id]['streak']
-        last_ac_date = streak_data[atcoder_id]['last_ac_date']
-        
-        if last_ac_date:
-            is_active = last_ac_date == today or last_ac_date == yesterday
-            status = "🔥" if is_active else "⚠️"
-        else:
-            is_active = False
-            status = "❌"
-        
-        ranking_data.append({
-            'atcoder_id': atcoder_id,
-            'display_name': display_name,
-            'streak': streak,
-            'last_ac_date': last_ac_date,
-            'status': status,
-            'is_active': is_active,
-        })
+    table, active_users, total_streak = generate_ranking_table(members_dict, streak_data, today)
     
-    # ストリーク日数で降順にソート
-    ranking_data.sort(key=lambda x: x['streak'], reverse=True)
-    
-    # ランキングメッセージを作成
+    # ランキングメッセージを作成（テーブル形式）
     message_lines = [":accepted: *AtCoder Streak Ranking*"]
-    message_lines.append(f"_as of {today}_")
     message_lines.append("")
-    
-    total_streak = 0
-    active_users = 0
-    
-    for rank, data in enumerate(ranking_data, 1):
-        if data['is_active']:
-            active_users += 1
-            total_streak += data['streak']
-        
-        last_ac_str = data['last_ac_date'].strftime('%Y-%m-%d') if data['last_ac_date'] else "N/A"
-        medal = ["🥇", "🥈", "🥉"]
-        rank_emoji = medal[rank - 1] if rank <= 3 else f"#{rank}"
-        message_lines.append(f"{rank_emoji} {data['status']} *{data['atcoder_id']}* : {data['streak']} days (Last: {last_ac_str})")
-    
-    message_lines.append("")
-    message_lines.append(f"🔥 Active: {active_users} users")
+    message_lines.append("```")
+    message_lines.append(table)
+    message_lines.append("```")
     
     message = "\n".join(message_lines)
     post_to_slack(message, channel_id=channel_id)

@@ -89,7 +89,7 @@ def generate_ranking_table(members_dict, streak_data, today):
         
         if last_ac_date:
             is_active = last_ac_date == today or last_ac_date == yesterday
-            status = ':accepted:' if is_active else ':kishimoto:'
+            status = '✅' if is_active else '🔺'
         else:
             is_active = False
             status = '❌'
@@ -148,7 +148,7 @@ def build_slack_blocks(members_dict, streak_data, today):
         
         if last_ac_date:
             is_active = last_ac_date == today or last_ac_date == yesterday
-            status = ':accepted:' if is_active else ':kishimoto:'
+            status = '✅' if is_active else '🔺'
         else:
             is_active = False
             status = '❌'

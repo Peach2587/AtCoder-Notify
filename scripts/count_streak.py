@@ -187,45 +187,14 @@ def build_slack_blocks(members_dict, streak_data, today):
         ]
     })
     
-    # Rich Text でテーブル形式を作成
-    rich_text_elements = []
-    
-    # ヘッダー行
-    rich_text_elements.append({
-        "type": "text",
-        "text": "Rank",
-        "style": {"bold": True}
-    })
-    rich_text_elements.append({"type": "text", "text": "  |  "})
-    rich_text_elements.append({
-        "type": "text",
-        "text": "Status",
-        "style": {"bold": True}
-    })
-    rich_text_elements.append({"type": "text", "text": "  |  "})
-    rich_text_elements.append({
-        "type": "text",
-        "text": "AtCoder ID",
-        "style": {"bold": True}
-    })
-    rich_text_elements.append({"type": "text", "text": "  |  "})
-    rich_text_elements.append({
-        "type": "text",
-        "text": "Streak",
-        "style": {"bold": True}
-    })
-    rich_text_elements.append({"type": "text", "text": "  |  "})
-    rich_text_elements.append({
-        "type": "text",
-        "text": "Last AC",
-        "style": {"bold": True}
-    })
-    rich_text_elements.append({"type": "break"})
+    # テーブル形式（mrkdwn使用）
+    table_lines = []
+    table_lines.append("*Rank* | *Status* | *AtCoder ID* | *Streak* | *Last AC*")
+    table_lines.append(":-|:-|:-|:-|:-")
     
     active_users = 0
     total_streak = 0
     
-    # データ行
     for rank, data in enumerate(ranking_data, 1):
         if data['is_active']:
             active_users += 1
@@ -243,29 +212,14 @@ def build_slack_blocks(members_dict, streak_data, today):
         else:
             rank_text = f"#{rank}"
         
-        rich_text_elements.append({"type": "text", "text": rank_text})
-        rich_text_elements.append({"type": "text", "text": "  |  "})
-        rich_text_elements.append({"type": "text", "text": data['status']})
-        rich_text_elements.append({"type": "text", "text": "  |  "})
-        rich_text_elements.append({
-            "type": "text",
-            "text": data['atcoder_id'],
-            "style": {"bold": True}
-        })
-        rich_text_elements.append({"type": "text", "text": "  |  "})
-        rich_text_elements.append({"type": "text", "text": str(data['streak']), "style": {"bold": True}})
-        rich_text_elements.append({"type": "text", "text": "  |  "})
-        rich_text_elements.append({"type": "text", "text": last_ac_str})
-        rich_text_elements.append({"type": "break"})
+        table_lines.append(f"{rank_text} | {data['status']} | `{data['atcoder_id']}` | *{data['streak']}* | {last_ac_str}")
     
     blocks.append({
-        "type": "rich_text",
-        "elements": [
-            {
-                "type": "rich_text_section",
-                "elements": rich_text_elements
-            }
-        ]
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": "\n".join(table_lines)
+        }
     })
     
     # 区切り線

@@ -172,7 +172,7 @@ def build_slack_blocks(members_dict, streak_data, today):
         "type": "header",
         "text": {
             "type": "plain_text",
-            "text": "🏆 AtCoder Streak Ranking"
+            "text": ":accepted: AtCoder Streak Ranking"
         }
     })
     
@@ -234,7 +234,7 @@ def build_slack_blocks(members_dict, streak_data, today):
         "elements": [
             {
                 "type": "mrkdwn",
-                "text": f"🔥 Active Users: {active_users} | 💯 Total Active Streak: {total_streak}"
+                "text": f"🔥 Active Users: {active_users}"
             }
         ]
     })

@@ -108,7 +108,6 @@ def generate_ranking_table(members_dict, streak_data, today):
     
     # テーブル行を生成
     lines = []
-    lines.append(f"AtCoder Streak Ranking (as of {today})")
     lines.append("=" * 75)
     lines.append(f"{'Rank':<6} | {'Status':<4} | {'AtCoder ID':<16} | {'Streak':<8} | {'Last AC':<12}")
     lines.append("-" * 75)
@@ -141,12 +140,10 @@ def notify_slack(streak_data, members_dict, today, channel_id: str | None = None
     """streak情報をSlackでランキング形式で通知"""
     table, active_users, total_streak = generate_ranking_table(members_dict, streak_data, today)
     
-    # ランキングメッセージを作成（テーブル形式）
-    message_lines = [":accepted: *AtCoder Streak Ranking*"]
+    # ランキングメッセージを作成（テーブル形式、普通のテキスト）
+    message_lines = [f":accepted: *AtCoder Streak Ranking* _as of {today}_"]
     message_lines.append("")
-    message_lines.append("```")
     message_lines.append(table)
-    message_lines.append("```")
     
     message = "\n".join(message_lines)
     post_to_slack(message, channel_id=channel_id)

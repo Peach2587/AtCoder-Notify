@@ -137,7 +137,7 @@ def display_streak_info(members_dict, streak_data, today):
 
 
 def build_slack_blocks(members_dict, streak_data, today):
-    """Block Kitを使ったSlack用リッチメッセージを生成"""
+    """Block Kitを使ったSlack用リッチメッセージを生成（表形式）"""
     ranking_data = []
     yesterday = today - timedelta(days=1)
 
@@ -176,39 +176,97 @@ def build_slack_blocks(members_dict, streak_data, today):
         }
     })
     
-    # サマリー
-    active_users = sum(1 for d in ranking_data if d['is_active'])
-    total_streak = sum(d['streak'] for d in ranking_data if d['is_active'])
-    
+    # 日付
     blocks.append({
-        "type": "section",
-        "text": {
-            "type": "mrkdwn",
-            "text": f"*_as of {today}_*"
-        }
+        "type": "context",
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": f"_as of {today}_"
+            }
+        ]
     })
     
-    # テーブルはセクションの複数行で表現
+    # Rich Text でテーブル形式を作成
+    rich_text_elements = []
+    
+    # ヘッダー行
+    rich_text_elements.append({
+        "type": "text",
+        "text": "Rank",
+        "style": {"bold": True}
+    })
+    rich_text_elements.append({"type": "text", "text": "  |  "})
+    rich_text_elements.append({
+        "type": "text",
+        "text": "Status",
+        "style": {"bold": True}
+    })
+    rich_text_elements.append({"type": "text", "text": "  |  "})
+    rich_text_elements.append({
+        "type": "text",
+        "text": "AtCoder ID",
+        "style": {"bold": True}
+    })
+    rich_text_elements.append({"type": "text", "text": "  |  "})
+    rich_text_elements.append({
+        "type": "text",
+        "text": "Streak",
+        "style": {"bold": True}
+    })
+    rich_text_elements.append({"type": "text", "text": "  |  "})
+    rich_text_elements.append({
+        "type": "text",
+        "text": "Last AC",
+        "style": {"bold": True}
+    })
+    rich_text_elements.append({"type": "break"})
+    
+    active_users = 0
+    total_streak = 0
+    
+    # データ行
     for rank, data in enumerate(ranking_data, 1):
+        if data['is_active']:
+            active_users += 1
+            total_streak += data['streak']
+        
         last_ac_str = data['last_ac_date'].strftime('%Y-%m-%d') if data['last_ac_date'] else 'N/A'
         
-        # ランク別に背景色を変える
+        # ランク（メダル表示）
         if rank == 1:
-            text_content = f"🥇 {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+            rank_text = "🥇 #1"
         elif rank == 2:
-            text_content = f"🥈 {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+            rank_text = "🥈 #2"
         elif rank == 3:
-            text_content = f"🥉 {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+            rank_text = "🥉 #3"
         else:
-            text_content = f"#{rank} {data['status']} *{data['atcoder_id']}* - {data['streak']} days (Last: {last_ac_str})"
+            rank_text = f"#{rank}"
         
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": text_content
-            }
+        rich_text_elements.append({"type": "text", "text": rank_text})
+        rich_text_elements.append({"type": "text", "text": "  |  "})
+        rich_text_elements.append({"type": "text", "text": data['status']})
+        rich_text_elements.append({"type": "text", "text": "  |  "})
+        rich_text_elements.append({
+            "type": "text",
+            "text": data['atcoder_id'],
+            "style": {"bold": True}
         })
+        rich_text_elements.append({"type": "text", "text": "  |  "})
+        rich_text_elements.append({"type": "text", "text": str(data['streak']), "style": {"bold": True}})
+        rich_text_elements.append({"type": "text", "text": "  |  "})
+        rich_text_elements.append({"type": "text", "text": last_ac_str})
+        rich_text_elements.append({"type": "break"})
+    
+    blocks.append({
+        "type": "rich_text",
+        "elements": [
+            {
+                "type": "rich_text_section",
+                "elements": rich_text_elements
+            }
+        ]
+    })
     
     # 区切り線
     blocks.append({"type": "divider"})

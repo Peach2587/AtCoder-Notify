@@ -163,6 +163,9 @@ def main() -> None:
 
         new_last_id = last_id
         new_last_epoch = from_second
+        
+        # 今回の実行で、このメンバーについて初AC処理が完了したかのフラグ
+        first_ac_on_today_processed = False
 
         for sub in ac_submissions:
             if sub["id"] <= last_id:
@@ -175,8 +178,15 @@ def main() -> None:
             ).date().isoformat()
 
             # 前回のAC日を取得（新しい日付かどうかを判定するため）
-            prev_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
-            is_first_ac_on_this_date = (prev_ac_date != sub_date)
+            # 同じ実行内で既に初AC処理済みの場合は、今日のAC提出は2件目以降
+            if first_ac_on_today_processed:
+                is_first_ac_on_this_date = False
+            else:
+                prev_ac_date: str = streak_state.get(f"{hkey}_last_ac_date", "")
+                is_first_ac_on_this_date = (prev_ac_date != sub_date)
+                # 初AC処理が今日の提出である場合、フラグを立てる
+                if is_first_ac_on_this_date:
+                    first_ac_on_today_processed = True
 
             # その日初めてのACの場合のみストリークを計算・更新
             if is_first_ac_on_this_date:
